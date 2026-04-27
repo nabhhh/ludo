@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ludo Royale</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  :root {
+    --red: #E63946;
+    --blue: #457B9D;
+    --green: #2D6A4F;
+    --yellow: #F4A261;
+    --red-light: #FFCDD2;
+    --blue-light: #BBDEFB;
+    --green-light: #C8E6C9;
+    --yellow-light: #FFF9C4;
+    --red-dark: #B71C1C;
+    --blue-dark: #1565C0;
+    --green-dark: #1B5E20;
+    --yellow-dark: #E65100;
+    --bg: #1a1a2e;
+    --bg2: #16213e;
+    --surface: #0f3460;
+    --surface2: #1a4a7a;
+    --gold: #FFD700;
+    --text: #e8f4f8;
+    --text-dim: #8ba4b4;
+    --radius: 12px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.4);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(69,123,157,0.15) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(230,57,70,0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── SCREENS ── */
+  .screen { display: none; position: relative; z-index: 1; }
+  .screen.active { display: flex; }
+
+  /* ── LOBBY ── */
+  #lobby-screen {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  .logo {
+    font-family: 'Baloo 2', cursive;
+    font-size: clamp(3rem, 8vw, 5rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--gold), #ff9500, var(--red));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-align: center;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    text-shadow: none;
+    filter: drop-shadow(0 4px 12px rgba(255,215,0,0.3));
+  }
+
+  .logo-sub {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 1rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 3rem;
+  }
+
+  .card {
+    background: rgba(15, 52, 96, 0.7);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 20px;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 420px;
+    backdrop-filter: blur(20px);
+    box-shadow: var(--shadow);
+  }
+
+  .card h2 {
+    font-family: 'Baloo 2', cursive;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    color: var(--text);
+  }
+
+  .input-group { margin-bottom: 1rem; }
+  .input-group label { display: block; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 0.4rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  input[type="text"] {
+    width: 100%;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    color: var(--text);
+    font-size: 1rem;
+    font-family: 'Nunito', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+  }
+  input[type="text"]:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,215,0,0.15); }
+  input[type="text"]::placeholder { color: var(--text-dim); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.8rem 1.8rem;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Baloo 2', cursive;
+    font-size: 1rem;
+    font-weight: 700;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--gold), #e6a800);
+    color: #1a1a2e;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,215,0,0.35); }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    background: rgba(255,255,255,0.08);
+    color: var(--text);
+    border: 1.5px solid rgba(255,255,255,0.15);
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.14); transform: translateY(-1px); }
+
+  .btn-danger { background: rgba(230,57,70,0.25); color: var(--red); border: 1.5px solid var(--red); }
+  .btn-danger:hover { background: rgba(230,57,70,0.4); }
+
+  .btn-ai { background: rgba(77, 150, 255, 0.2); color: #7ec8ff; border: 1.5px solid rgba(77,150,255,0.4); }
+  .btn-ai:hover { background: rgba(77,150,255,0.35); }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.1); }
+
+  /* ── WAITING ROOM ── */
+  #waiting-screen {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+  }
+
+  .room-code-display {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  .room-code-display .label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 0.5rem; }
+  .room-code-display .code {
+    font-family: 'Baloo 2', cursive;
+    font-size: 3rem;
+    font-weight: 800;
+    letter-spacing: 6px;
+    background: linear-gradient(135deg, var(--gold), #ff9500);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .share-link {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .share-link:hover { background: rgba(255,255,255,0.1); }
+  .share-link .link-text { flex: 1; font-size: 0.82rem; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .share-link .copy-btn { font-size: 0.8rem; color: var(--gold); font-weight: 700; flex-shrink: 0; }
+
+  .players-list { margin-bottom: 1.5rem; }
+  .player-slot {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.8rem;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .player-color-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .player-slot-name { flex: 1; font-weight: 600; }
+  .player-slot-tag { font-size: 0.75rem; color: var(--text-dim); background: rgba(255,255,255,0.08); padding: 2px 8px; border-radius: 20px; }
+  .player-slot-remove { background: none; border: none; color: var(--red); cursor: pointer; font-size: 1rem; padding: 0 4px; }
+
+  .empty-slot {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    padding: 0.8rem;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    border: 1.5px dashed rgba(255,255,255,0.1);
+    color: var(--text-dim);
+    font-size: 0.9rem;
+  }
+
+  .waiting-actions { display: flex; flex-direction: column; gap: 0.7rem; }
+
+  /* ── GAME SCREEN ── */
+  #game-screen {
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 1rem;
+  }
+
+  .game-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 900px;
+    margin-bottom: 1rem;
+    padding: 0.6rem 1rem;
+    background: rgba(15,52,96,0.6);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  .game-title { font-family: 'Baloo 2', cursive; font-size: 1.4rem; font-weight: 800; color: var(--gold); }
+  .turn-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+
+  .game-layout {
+    display: flex;
+    gap: 1rem;
+    width: 100%;
+    max-width: 900px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ── BOARD ── */
+  .board-wrapper {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  #ludo-board {
+    display: grid;
+    grid-template-columns: repeat(15, 1fr);
+    grid-template-rows: repeat(15, 1fr);
+    width: min(540px, 90vw);
+    height: min(540px, 90vw);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,0,0,0.6), 0 0 0 3px rgba(255,215,0,0.2);
+    background: #f8f5e4;
+  }
+
+  .cell {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0.5px solid rgba(0,0,0,0.1);
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    min-width: 220px;
+    flex: 1;
+  }
+
+  .player-card {
+    border-radius: 14px;
+    padding: 1rem;
+    border: 2px solid transparent;
+    transition: all 0.3s;
+    background: rgba(15,52,96,0.6);
+  }
+  .player-card.active-turn {
+    border-color: var(--gold);
+    box-shadow: 0 0 20px rgba(255,215,0,0.25);
+    animation: pulse-border 2s infinite;
+  }
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 15px rgba(255,215,0,0.2); }
+    50% { box-shadow: 0 0 30px rgba(255,215,0,0.45); }
+  }
+
+  .player-card-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.6rem; }
+  .player-card-color { width: 12px; height: 12px; border-radius: 50%; }
+  .player-card-name { font-weight: 700; font-size: 0.95rem; flex: 1; }
+  .player-card-tag { font-size: 0.7rem; color: var(--text-dim); }
+
+  .piece-indicators { display: flex; gap: 4px; }
+  .piece-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.3);
+    transition: all 0.3s;
+  }
+  .piece-dot.yard { opacity: 0.3; }
+  .piece-dot.active { opacity: 1; animation: bounce-dot 0.5s ease; }
+  .piece-dot.home { border-color: var(--gold); box-shadow: 0 0 6px var(--gold); }
+  @keyframes bounce-dot { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+
+  /* ── DICE & ACTIONS ── */
+  .action-panel {
+    background: rgba(15,52,96,0.6);
+    border-radius: 14px;
+    padding: 1rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    text-align: center;
+  }
+
+  .dice-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 1rem;
+  }
+
+  .dice {
+    width: 70px;
+    height: 70px;
+    background: white;
+    border-radius: 14px;
+    display: grid;
+    grid-template-areas:
+      "a . c"
+      "e g f"
+      "d . b";
+    padding: 10px;
+    gap: 4px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4), inset 0 1px 2px rgba(255,255,255,0.5);
+    transition: transform 0.1s;
+    cursor: pointer;
+    position: relative;
+  }
+  .dice.rolling { animation: roll-dice 0.5s ease; }
+  @keyframes roll-dice {
+    0% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-20deg) scale(1.1); }
+    50% { transform: rotate(20deg) scale(0.9); }
+    75% { transform: rotate(-10deg) scale(1.05); }
+    100% { transform: rotate(0deg) scale(1); }
+  }
+  .dice:hover:not(.disabled) { transform: scale(1.05); box-shadow: 0 8px 25px rgba(0,0,0,0.5); }
+  .dice.disabled { cursor: not-allowed; opacity: 0.6; }
+
+  .dot {
+    width: 100%;
+    height: 100%;
+    background: #1a1a2e;
+    border-radius: 50%;
+    display: none;
+  }
+  .dot.visible { display: block; }
+  .dot-a { grid-area: a; }
+  .dot-b { grid-area: b; }
+  .dot-c { grid-area: c; }
+  .dot-d { grid-area: d; }
+  .dot-e { grid-area: e; }
+  .dot-f { grid-area: f; }
+  .dot-g { grid-area: g; }
+
+  .btn-roll {
+    background: linear-gradient(135deg, var(--gold), #e6a800);
+    color: #1a1a2e;
+    width: 100%;
+    padding: 0.8rem;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Baloo 2', cursive;
+    font-weight: 700;
+    font-size: 1rem;
+    transition: all 0.2s;
+    margin-bottom: 0.5rem;
+  }
+  .btn-roll:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,215,0,0.35); }
+  .btn-roll:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .turn-msg {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 0.5rem;
+  }
+
+  /* ── LOG ── */
+  .move-log {
+    background: rgba(15,52,96,0.6);
+    border-radius: 14px;
+    padding: 0.8rem 1rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    max-height: 160px;
+    overflow-y: auto;
+  }
+  .move-log h4 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); margin-bottom: 0.5rem; }
+  .log-entry { font-size: 0.8rem; color: var(--text-dim); padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .log-entry:last-child { border: none; color: var(--text); }
+
+  /* ── WINNER OVERLAY ── */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(6px);
+  }
+  .overlay.show { display: flex; }
+  .winner-card {
+    background: linear-gradient(135deg, #1a1a2e, #0f3460);
+    border: 2px solid var(--gold);
+    border-radius: 24px;
+    padding: 3rem;
+    text-align: center;
+    max-width: 400px;
+    box-shadow: 0 0 80px rgba(255,215,0,0.3);
+    animation: pop-in 0.5s cubic-bezier(0.175,0.885,0.32,1.275);
+  }
+  @keyframes pop-in { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .winner-trophy { font-size: 4rem; margin-bottom: 1rem; animation: spin-trophy 2s ease infinite alternate; }
+  @keyframes spin-trophy { from { transform: rotate(-10deg); } to { transform: rotate(10deg); } }
+  .winner-title { font-family: 'Baloo 2', cursive; font-size: 1rem; color: var(--text-dim); letter-spacing: 3px; text-transform: uppercase; }
+  .winner-name { font-family: 'Baloo 2', cursive; font-size: 2.5rem; font-weight: 800; color: var(--gold); margin: 0.3rem 0; }
+  .winner-actions { display: flex; gap: 1rem; justify-content: center; margin-top: 2rem; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: rgba(15,52,96,0.95);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 10px;
+    padding: 0.8rem 1.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+    z-index: 200;
+    transition: transform 0.3s ease;
+    backdrop-filter: blur(10px);
+    max-width: 90vw;
+    text-align: center;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── EXTRA TURN BADGE ── */
+  .extra-turn-badge {
+    background: linear-gradient(135deg, var(--gold), #ff9500);
+    color: #1a1a2e;
+    font-family: 'Baloo 2', cursive;
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 2px 10px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    display: none;
+  }
+  .extra-turn-badge.show { display: inline-block; animation: pop-in 0.3s ease; }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 640px) {
+    .game-layout { flex-direction: column; }
+    .sidebar { min-width: unset; width: 100%; }
+    .player-cards-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .player-cards-row .player-card { flex: 1; min-width: 140px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── LOBBY ─── -->
+<div id="lobby-screen" class="screen active">
+  <div class="logo">🎲 Ludo Royale</div>
+  <div class="logo-sub">Roll the dice · Rule the board</div>
+
+  <div class="card">
+    <h2>🎮 Play with Friends</h2>
+    <div class="input-group">
+      <label>Your Name</label>
+      <input type="text" id="player-name" placeholder="Enter your name" maxlength="20">
+    </div>
+    <button class="btn btn-primary" onclick="createRoom()">✨ Create New Room</button>
+
+    <div class="divider">or join existing</div>
+
+    <div class="input-group">
+      <label>Room Code</label>
+      <input type="text" id="join-code" placeholder="e.g. A1B2C3" maxlength="6" style="text-transform:uppercase">
+    </div>
+    <button class="btn btn-secondary" onclick="joinRoom()" style="width:100%">🚪 Join Room</button>
+  </div>
+</div>
+
+<!-- ─── WAITING ROOM ─── -->
+<div id="waiting-screen" class="screen">
+  <div style="width:100%;max-width:460px">
+    <div class="room-code-display">
+      <div class="label">Room Code</div>
+      <div class="code" id="display-room-code">------</div>
+    </div>
+
+    <div class="card">
+      <div class="share-link" onclick="copyLink()" title="Click to copy">
+        <span>🔗</span>
+        <span class="link-text" id="share-link-text">Loading...</span>
+        <span class="copy-btn">COPY</span>
+      </div>
+
+      <div class="players-list" id="waiting-players-list"></div>
+
+      <div class="waiting-actions" id="waiting-actions"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── GAME ─── -->
+<div id="game-screen" class="screen">
+  <div class="game-header">
+    <div class="game-title">🎲 Ludo Royale</div>
+    <div class="turn-indicator" id="turn-indicator">
+      <span id="turn-color-dot" style="width:12px;height:12px;border-radius:50%;display:inline-block"></span>
+      <span id="turn-name">...</span>'s turn
+    </div>
+    <span class="extra-turn-badge" id="extra-turn-badge">⚡ Extra Turn!</span>
+    <div style="font-size:0.8rem;color:var(--text-dim);cursor:pointer" onclick="copyLink()">🔗 Invite</div>
+  </div>
+
+  <div class="game-layout">
+    <!-- Board -->
+    <div class="board-wrapper">
+      <canvas id="ludo-board" width="540" height="540" style="border-radius:16px;box-shadow:0 0 60px rgba(0,0,0,0.6),0 0 0 3px rgba(255,215,0,0.2);display:block;width:min(540px,90vw);height:min(540px,90vw)"></canvas>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div id="player-cards-container"></div>
+
+      <div class="action-panel">
+        <div class="dice-container">
+          <div class="dice disabled" id="dice-display" onclick="rollDice()">
+            <div class="dot dot-a" id="d-a"></div>
+            <div class="dot dot-b" id="d-b"></div>
+            <div class="dot dot-c" id="d-c"></div>
+            <div class="dot dot-d" id="d-d"></div>
+            <div class="dot dot-e" id="d-e"></div>
+            <div class="dot dot-f" id="d-f"></div>
+            <div class="dot dot-g" id="d-g"></div>
+          </div>
+        </div>
+        <button class="btn-roll" id="btn-roll" onclick="rollDice()" disabled>🎲 Roll Dice</button>
+        <div class="turn-msg" id="turn-msg">Waiting for game to start...</div>
+      </div>
+
+      <div class="move-log">
+        <h4>Move Log</h4>
+        <div id="log-entries"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── WINNER OVERLAY ─── -->
+<div class="overlay" id="winner-overlay">
+  <div class="winner-card">
+    <div class="winner-trophy">🏆</div>
+    <div class="winner-title">Winner!</div>
+    <div class="winner-name" id="winner-name-display">---</div>
+    <div style="color:var(--text-dim);font-size:0.9rem;margin-top:0.5rem">All pieces reached home!</div>
+    <div class="winner-actions">
+      <button class="btn btn-primary" onclick="restartGame()" id="btn-restart" style="display:none">🔄 Play Again</button>
+      <button class="btn btn-secondary" onclick="goToLobby()">🏠 Leave</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TOAST ─── -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+const socket = io();
+let myPlayerId = null;
+let myColor = null;
+let roomId = null;
+let roomState = null;
+let isHost = false;
+let selectedPiece = null;
+let validMoves = [];
+let boardCanvas, boardCtx;
+let boardSize = 540;
+let cellSize;
+
+const COLORS = ['red', 'blue', 'green', 'yellow'];
+const COLOR_HEX = { red: '#E63946', blue: '#457B9D', green: '#2D6A4F', yellow: '#F4A261' };
+const COLOR_LIGHT = { red: '#FFCDD2', blue: '#BBDEFB', green: '#C8E6C9', yellow: '#FFF9C4' };
+const COLOR_DARK = { red: '#B71C1C', blue: '#1565C0', green: '#1B5E20', yellow: '#E65100' };
+const START_SQUARES = { red: 0, blue: 13, green: 26, yellow: 39 };
+const SAFE_SQUARES = [0, 8, 13, 21, 26, 34, 39, 47];
+
+// Board cell layout: 15x15 grid
+// Grid positions for each of the 52 main path squares
+const PATH_CELLS = buildPathCells();
+const HOME_STRETCH_CELLS = buildHomeStretchCells();
+const YARD_CELLS = buildYardCells();
+
+function buildPathCells() {
+  // Returns array of {col, row} for main path squares 0-51
+  // Red starts at 0 (bottom-left going up), then clockwise
+  const cells = [];
+  // Bottom-left upward column (red start area going up): col=6, rows 14..9
+  for (let r = 14; r >= 9; r--) cells.push({col:6, row:r}); // 0-5 (red)
+  // Left block going right: row=8, cols 0..5
+  for (let c = 0; c <= 5; c++) cells.push({col:c, row:8}); // 6-11
+  // Top-left column going up: col=0, rows 7..6 — wait, let me just hardcode the full path
+  cells.length = 0;
+
+  const path = [
+    // Starting from red entry (square 0), going up left column
+    {col:6,row:14},{col:6,row:13},{col:6,row:12},{col:6,row:11},{col:6,row:10},{col:6,row:9},
+    // going left on row 8
+    {col:5,row:8},{col:4,row:8},{col:3,row:8},{col:2,row:8},{col:1,row:8},{col:0,row:8},
+    // going up on col 0 (actually col 0 row 7..6)
+    {col:0,row:7},{col:0,row:6},
+    // going right on row 6 — wait, the standard Ludo board path is:
+    // I'll use the correct standard Ludo path
+  ];
+
+  // Standard Ludo 15x15 grid path — hardcoded correct path
+  return [
+    // Red home column approach & entry: sq 0 = entry point
+    {col:6,row:13},{col:6,row:12},{col:6,row:11},{col:6,row:10},{col:6,row:9},
+    {col:5,row:8},{col:4,row:8},{col:3,row:8},{col:2,row:8},{col:1,row:8},
+    {col:0,row:8},{col:0,row:7},{col:0,row:6},
+    {col:1,row:6},{col:2,row:6},{col:3,row:6},{col:4,row:6},{col:5,row:6},
+    {col:6,row:5},{col:6,row:4},{col:6,row:3},{col:6,row:2},{col:6,row:1},{col:6,row:0},
+    {col:7,row:0},{col:8,row:0},
+    {col:8,row:1},{col:8,row:2},{col:8,row:3},{col:8,row:4},{col:8,row:5},
+    {col:9,row:6},{col:10,row:6},{col:11,row:6},{col:12,row:6},{col:13,row:6},{col:14,row:6},
+    {col:14,row:7},{col:14,row:8},
+    {col:13,row:8},{col:12,row:8},{col:11,row:8},{col:10,row:8},{col:9,row:8},
+    {col:8,row:9},{col:8,row:10},{col:8,row:11},{col:8,row:12},{col:8,row:13},
+    {col:8,row:14},{col:7,row:14},
+  ];
+}
+
+function buildHomeStretchCells() {
+  return {
+    red:    [{col:7,row:13},{col:7,row:12},{col:7,row:11},{col:7,row:10},{col:7,row:9},{col:7,row:8}],
+    blue:   [{col:1,row:7},{col:2,row:7},{col:3,row:7},{col:4,row:7},{col:5,row:7},{col:6,row:7}],
+    green:  [{col:7,row:1},{col:7,row:2},{col:7,row:3},{col:7,row:4},{col:7,row:5},{col:7,row:6}],
+    yellow: [{col:13,row:7},{col:12,row:7},{col:11,row:7},{col:10,row:7},{col:9,row:7},{col:8,row:7}],
+  };
+}
+
+function buildYardCells() {
+  // 4 yard positions for each color
+  return {
+    red:    [{col:1,row:11},{col:2,row:11},{col:1,row:12},{col:2,row:12}],
+    blue:   [{col:1,row:1},{col:2,row:1},{col:1,row:2},{col:2,row:2}],
+    green:  [{col:11,row:1},{col:12,row:1},{col:11,row:2},{col:12,row:2}],
+    yellow: [{col:11,row:11},{col:12,row:11},{col:11,row:12},{col:12,row:12}],
+  };
+}
+
+// ─── Socket Events ────────────────────────────────────────────────────────────
+socket.on('room_update', (room) => {
+  roomState = room;
+  if (room.state === 'lobby') renderWaitingRoom(room);
+  else if (room.state === 'playing' || room.state === 'finished') renderGame(room);
+});
+
+socket.on('player_disconnected', ({name}) => showToast(`${name} disconnected`));
+
+// ─── Lobby Actions ────────────────────────────────────────────────────────────
+function getPlayerName() {
+  const name = document.getElementById('player-name').value.trim();
+  if (!name) { showToast('Please enter your name!'); return null; }
+  return name;
+}
+
+function createRoom() {
+  const name = getPlayerName();
+  if (!name) return;
+  socket.emit('create_room', { playerName: name }, (res) => {
+    if (res.error) return showToast(res.error);
+    myPlayerId = res.playerId;
+    myColor = res.color;
+    roomId = res.roomId;
+    isHost = true;
+    showScreen('waiting');
+    updateShareLink();
+  });
+}
+
+function joinRoom() {
+  const name = getPlayerName();
+  if (!name) return;
+  const code = document.getElementById('join-code').value.trim().toUpperCase();
+  if (!code) return showToast('Enter a room code!');
+  socket.emit('join_room', { roomId: code, playerName: name }, (res) => {
+    if (res.error) return showToast(res.error);
+    myPlayerId = res.playerId;
+    myColor = res.color;
+    roomId = res.roomId;
+    isHost = false;
+    showScreen('waiting');
+    updateShareLink();
+  });
+}
+
+// Check URL for room code on load
+window.addEventListener('load', () => {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('room');
+  if (code) document.getElementById('join-code').value = code;
+
+  boardCanvas = document.getElementById('ludo-board');
+  boardCtx = boardCanvas.getContext('2d');
+
+  // Resize canvas
+  const size = Math.min(540, window.innerWidth * 0.9);
+  boardCanvas.style.width = size + 'px';
+  boardCanvas.style.height = size + 'px';
+
+  boardCanvas.addEventListener('click', onBoardClick);
+});
+
+function updateShareLink() {
+  const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+  document.getElementById('share-link-text').textContent = url;
+  document.getElementById('display-room-code').textContent = roomId;
+}
+
+function copyLink() {
+  const url = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+  navigator.clipboard.writeText(url).then(() => showToast('🔗 Link copied!')).catch(() => {
+    showToast(`Room code: ${roomId}`);
+  });
+}
+
+// ─── Waiting Room ─────────────────────────────────────────────────────────────
+function renderWaitingRoom(room) {
+  const list = document.getElementById('waiting-players-list');
+  const actions = document.getElementById('waiting-actions');
+  list.innerHTML = '';
+
+  COLORS.forEach(color => {
+    const player = room.players.find(p => p.color === color);
+    if (player) {
+      list.innerHTML += `
+        <div class="player-slot">
+          <div class="player-color-dot" style="background:${COLOR_HEX[color]}"></div>
+          <span class="player-slot-name">${escHtml(player.name)}</span>
+          ${player.isAI ? '<span class="player-slot-tag">🤖 AI</span>' : ''}
+          ${player.id === myPlayerId ? '<span class="player-slot-tag">You</span>' : ''}
+          ${isHost && player.isAI ? `<button class="player-slot-remove" onclick="removeAI('${color}')">✕</button>` : ''}
+        </div>`;
+    } else {
+      list.innerHTML += `<div class="empty-slot">⬡ <span style="color:${COLOR_HEX[color]};font-weight:600">${color.charAt(0).toUpperCase()+color.slice(1)}</span> — waiting...</div>`;
+    }
+  });
+
+  actions.innerHTML = '';
+  if (isHost) {
+    if (room.players.length < 4) {
+      actions.innerHTML += `<button class="btn btn-ai" onclick="addAI()">🤖 Add AI Player</button>`;
+    }
+    if (room.players.length >= 2) {
+      actions.innerHTML += `<button class="btn btn-primary" onclick="startGame()">▶ Start Game</button>`;
+    } else {
+      actions.innerHTML += `<button class="btn btn-primary" disabled style="opacity:0.5;cursor:not-allowed">Need at least 2 players</button>`;
+    }
+  } else {
+    actions.innerHTML += `<div style="color:var(--text-dim);text-align:center;padding:1rem">Waiting for host to start...</div>`;
+  }
+}
+
+function addAI() {
+  socket.emit('add_ai', { roomId }, (res) => {
+    if (res?.error) showToast(res.error);
+  });
+}
+
+function removeAI(color) {
+  socket.emit('remove_ai', { roomId, color });
+}
+
+function startGame() {
+  socket.emit('start_game', { roomId }, (res) => {
+    if (res?.error) showToast(res.error);
+  });
+}
+
+// ─── Game Rendering ───────────────────────────────────────────────────────────
+function renderGame(room) {
+  if (document.getElementById('game-screen').style.display === 'none' ||
+      !document.getElementById('game-screen').classList.contains('active')) {
+    showScreen('game');
+    validMoves = [];
+    selectedPiece = null;
+  }
+
+  drawBoard(room);
+  renderPlayerCards(room);
+  renderActionPanel(room);
+  renderMoveLog(room);
+
+  if (room.winner) {
+    showWinner(room);
+  }
+}
+
+function drawBoard(room) {
+  const canvas = boardCanvas;
+  const ctx = boardCtx;
+  const W = canvas.width;
+  const H = canvas.height;
+  const cs = W / 15; // cell size
+  cellSize = cs;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#f8f5e4';
+  ctx.fillRect(0, 0, W, H);
+
+  // Draw colored yard zones
+  drawYardZone(ctx, cs, 'red', 0, 9);
+  drawYardZone(ctx, cs, 'blue', 0, 0);
+  drawYardZone(ctx, cs, 'green', 9, 0);
+  drawYardZone(ctx, cs, 'yellow', 9, 9);
+
+  // Draw center triangle (home)
+  drawCenter(ctx, cs);
+
+  // Draw home stretch colored lanes
+  drawHomeStretches(ctx, cs);
+
+  // Draw main path outline & safe stars
+  drawPathCells(ctx, cs);
+
+  // Draw grid lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 15; i++) {
+    ctx.beginPath(); ctx.moveTo(i*cs, 0); ctx.lineTo(i*cs, H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i*cs); ctx.lineTo(W, i*cs); ctx.stroke();
+  }
+
+  // Highlight valid moves
+  if (validMoves.length > 0 && room.dice) {
+    highlightMoves(ctx, cs, room);
+  }
+
+  // Draw pieces
+  COLORS.forEach(color => {
+    if (!room.pieces[color]) return;
+    room.pieces[color].forEach((piece, idx) => {
+      drawPiece(ctx, cs, piece, color, idx, room);
+    });
+  });
+}
+
+function drawYardZone(ctx, cs, color, startCol, startRow) {
+  const x = startCol * cs;
+  const y = startRow * cs;
+  const size = 6 * cs;
+
+  // Outer zone
+  ctx.fillStyle = COLOR_HEX[color];
+  ctx.fillRect(x, y, size, size);
+
+  // Inner white yard area
+  const margin = cs * 0.6;
+  ctx.fillStyle = 'white';
+  roundRect(ctx, x + margin, y + margin, size - 2*margin, size - 2*margin, cs*0.3);
+  ctx.fill();
+
+  // Color label
+  ctx.fillStyle = COLOR_HEX[color];
+  ctx.font = `bold ${cs*0.55}px 'Baloo 2', cursive`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+}
+
+function drawCenter(ctx, cs) {
+  const cx = 7.5 * cs;
+  const cy = 7.5 * cs;
+  const s = cs;
+
+  // Center home square (3x3)
+  // Draw 4 triangles for each color
+  const colors = {
+    red: [{x:6*cs,y:9*cs},{x:9*cs,y:9*cs},{x:7.5*cs,y:7.5*cs}],
+    blue: [{x:6*cs,y:6*cs},{x:6*cs,y:9*cs},{x:7.5*cs,y:7.5*cs}],
+    green: [{x:6*cs,y:6*cs},{x:9*cs,y:6*cs},{x:7.5*cs,y:7.5*cs}],
+    yellow: [{x:9*cs,y:6*cs},{x:9*cs,y:9*cs},{x:7.5*cs,y:7.5*cs}],
+  };
+
+  Object.entries(colors).forEach(([color, pts]) => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.lineTo(pts[2].x, pts[2].y);
+    ctx.closePath();
+    ctx.fillStyle = COLOR_HEX[color];
+    ctx.fill();
+  });
+
+  // Star in center
+  ctx.font = `${cs*1.2}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('⭐', cx, cy);
+}
+
+function drawHomeStretches(ctx, cs) {
+  const stretches = {
+    red:    {cells: HOME_STRETCH_CELLS.red, color: COLOR_HEX.red},
+    blue:   {cells: HOME_STRETCH_CELLS.blue, color: COLOR_HEX.blue},
+    green:  {cells: HOME_STRETCH_CELLS.green, color: COLOR_HEX.green},
+    yellow: {cells: HOME_STRETCH_CELLS.yellow, color: COLOR_HEX.yellow},
+  };
+  Object.values(stretches).forEach(({cells, color}) => {
+    cells.slice(0,5).forEach(cell => {
+      ctx.fillStyle = color + '55';
+      ctx.fillRect(cell.col*cs, cell.row*cs, cs, cs);
+    });
+  });
+}
+
+function drawPathCells(ctx, cs) {
+  // Safe squares get a star
+  PATH_CELLS.forEach((cell, idx) => {
+    if (SAFE_SQUARES.includes(idx)) {
+      ctx.fillStyle = 'rgba(255,215,0,0.25)';
+      ctx.fillRect(cell.col*cs, cell.row*cs, cs, cs);
+      ctx.font = `${cs*0.45}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('⭐', (cell.col+0.5)*cs, (cell.row+0.5)*cs);
+    }
+  });
+
+  // Color entry cells
+  const entries = {red:0, blue:13, green:26, yellow:39};
+  Object.entries(entries).forEach(([color, idx]) => {
+    const cell = PATH_CELLS[idx];
+    ctx.fillStyle = COLOR_HEX[color] + '33';
+    ctx.fillRect(cell.col*cs, cell.row*cs, cs, cs);
+  });
+}
+
+function highlightMoves(ctx, cs, room) {
+  const currentPlayer = room.players[room.currentTurn];
+  if (!currentPlayer || currentPlayer.id !== myPlayerId) return;
+
+  validMoves.forEach(move => {
+    const piece = room.pieces[myColor][move.pieceIdx];
+    let cx, cy;
+
+    if (move.action === 'enter') {
+      const entryCell = PATH_CELLS[START_SQUARES[myColor]];
+      cx = entryCell.col * cs + cs/2;
+      cy = entryCell.row * cs + cs/2;
+    } else {
+      const posInfo = getAbsolutePos(myColor, move.newSteps);
+      const cell = getCellForPos(myColor, posInfo);
+      if (!cell) return;
+      cx = cell.col * cs + cs/2;
+      cy = cell.row * cs + cs/2;
+    }
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, cs*0.35, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(255,215,0,0.35)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,215,0,0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+}
+
+function getAbsolutePos(color, steps) {
+  const startSquares = {red:0, blue:13, green:26, yellow:39};
+  const start = startSquares[color];
+  if (steps <= 0) return { zone: 'yard' };
+  if (steps <= 52) {
+    const sq = (start + steps - 1) % 52;
+    return { zone: 'main', sq };
+  }
+  if (steps <= 57) return { zone: 'home_stretch', sq: steps - 53 };
+  return { zone: 'home' };
+}
+
+function getCellForPos(color, posInfo) {
+  if (posInfo.zone === 'main') return PATH_CELLS[posInfo.sq];
+  if (posInfo.zone === 'home_stretch') return HOME_STRETCH_CELLS[color][posInfo.sq];
+  return null;
+}
+
+function drawPiece(ctx, cs, piece, color, idx, room) {
+  let cx, cy;
+  const r = cs * 0.3;
+
+  if (piece.state === 'yard') {
+    const yardCell = YARD_CELLS[color][idx];
+    cx = (yardCell.col + 0.5) * cs;
+    cy = (yardCell.row + 0.5) * cs;
+  } else if (piece.state === 'home') {
+    // Show in center area
+    const offsets = [{x:-0.15,y:-0.15},{x:0.15,y:-0.15},{x:-0.15,y:0.15},{x:0.15,y:0.15}];
+    cx = (7.5 + offsets[idx].x) * cs;
+    cy = (7.5 + offsets[idx].y) * cs;
+  } else {
+    const posInfo = getAbsolutePos(color, piece.steps);
+    const cell = getCellForPos(color, posInfo);
+    if (!cell) return;
+    // Multiple pieces on same cell: offset slightly
+    const sameCell = countPiecesOnSameCell(room, color, piece.steps, piece.id);
+    const offsets = [{x:0,y:0},{x:0.22,y:0},{x:0,y:0.22},{x:0.22,y:0.22}];
+    const off = offsets[sameCell] || {x:0,y:0};
+    cx = (cell.col + 0.4 + off.x) * cs;
+    cy = (cell.row + 0.4 + off.y) * cs;
+  }
+
+  // Shadow
+  ctx.beginPath();
+  ctx.arc(cx+1, cy+2, r, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.fill();
+
+  // Piece body
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+
+  // Gradient
+  const grad = ctx.createRadialGradient(cx-r*0.3, cy-r*0.3, r*0.1, cx, cy, r);
+  grad.addColorStop(0, lightenColor(COLOR_HEX[color], 40));
+  grad.addColorStop(1, COLOR_HEX[color]);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Highlight ring
+  ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Selected indicator
+  if (selectedPiece === idx && color === myColor && piece.state !== 'home') {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r + 3, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(255,215,0,0.9)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }
+
+  // Piece number
+  ctx.fillStyle = 'white';
+  ctx.font = `bold ${cs*0.22}px 'Nunito', sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(idx+1, cx, cy);
+}
+
+function countPiecesOnSameCell(room, myColor, mySteps, myId) {
+  // How many pieces of my color are at the same position before this one
+  let count = 0;
+  room.pieces[myColor].forEach(p => {
+    if (p.id < myId && p.state === 'active' && p.steps === mySteps) count++;
+  });
+  return count;
+}
+
+function lightenColor(hex, amount) {
+  const num = parseInt(hex.replace('#',''), 16);
+  const r = Math.min(255, (num >> 16) + amount);
+  const g = Math.min(255, ((num >> 8) & 0xff) + amount);
+  const b = Math.min(255, (num & 0xff) + amount);
+  return `rgb(${r},${g},${b})`;
+}
+
+function onBoardClick(e) {
+  if (!roomState || roomState.state !== 'playing') return;
+  const currentPlayer = roomState.players[roomState.currentTurn];
+  if (!currentPlayer || currentPlayer.id !== myPlayerId) return;
+  if (!roomState.dice) return;
+
+  const rect = boardCanvas.getBoundingClientRect();
+  const scaleX = boardCanvas.width / rect.width;
+  const scaleY = boardCanvas.height / rect.height;
+  const mx = (e.clientX - rect.left) * scaleX;
+  const my = (e.clientY - rect.top) * scaleY;
+
+  // Check if clicked on one of my pieces
+  const pieces = roomState.pieces[myColor];
+  if (!pieces) return;
+
+  let clickedPieceIdx = null;
+  pieces.forEach((piece, idx) => {
+    let cx, cy;
+    if (piece.state === 'yard') {
+      const yardCell = YARD_CELLS[myColor][idx];
+      cx = (yardCell.col + 0.5) * cellSize;
+      cy = (yardCell.row + 0.5) * cellSize;
+    } else if (piece.state === 'active') {
+      const posInfo = getAbsolutePos(myColor, piece.steps);
+      const cell = getCellForPos(myColor, posInfo);
+      if (!cell) return;
+      cx = (cell.col + 0.5) * cellSize;
+      cy = (cell.row + 0.5) * cellSize;
+    } else return;
+
+    const dist = Math.sqrt((mx-cx)**2 + (my-cy)**2);
+    if (dist < cellSize * 0.4) clickedPieceIdx = idx;
+  });
+
+  if (clickedPieceIdx === null) { selectedPiece = null; drawBoard(roomState); return; }
+
+  // Find matching valid move
+  const move = validMoves.find(m => m.pieceIdx === clickedPieceIdx);
+  if (!move) { showToast('This piece cannot move!'); return; }
+
+  // Execute move
+  socket.emit('make_move', {
+    roomId, playerId: myPlayerId,
+    pieceIdx: move.pieceIdx,
+    action: move.action,
+    newSteps: move.newSteps
+  }, (res) => {
+    if (res?.error) showToast(res.error);
+    selectedPiece = null;
+    validMoves = [];
+  });
+}
+
+function renderPlayerCards(room) {
+  const container = document.getElementById('player-cards-container');
+  container.innerHTML = '';
+
+  room.players.forEach((player, idx) => {
+    const pieces = room.pieces[player.color] || [];
+    const isActive = idx === room.currentTurn;
+    const pieceDots = pieces.map(p =>
+      `<div class="piece-dot ${p.state}" style="background:${COLOR_HEX[player.color]}"></div>`
+    ).join('');
+
+    container.innerHTML += `
+      <div class="player-card ${isActive ? 'active-turn' : ''}">
+        <div class="player-card-header">
+          <div class="player-card-color" style="background:${COLOR_HEX[player.color]}"></div>
+          <span class="player-card-name">${escHtml(player.name)}</span>
+          ${player.isAI ? '<span class="player-card-tag">🤖</span>' : ''}
+          ${player.id === myPlayerId ? '<span class="player-card-tag">You</span>' : ''}
+        </div>
+        <div class="piece-indicators">${pieceDots}</div>
+      </div>`;
+  });
+
+  // Turn indicator
+  const currentPlayer = room.players[room.currentTurn];
+  if (currentPlayer) {
+    document.getElementById('turn-name').textContent = currentPlayer.name;
+    document.getElementById('turn-color-dot').style.background = COLOR_HEX[currentPlayer.color];
+  }
+
+  const badge = document.getElementById('extra-turn-badge');
+  badge.classList.toggle('show', !!room.extraTurn);
+}
+
+function renderActionPanel(room) {
+  const currentPlayer = room.players[room.currentTurn];
+  const isMyTurn = currentPlayer?.id === myPlayerId;
+  const btnRoll = document.getElementById('btn-roll');
+  const dice = document.getElementById('dice-display');
+  const msg = document.getElementById('turn-msg');
+
+  if (room.dice) {
+    showDice(room.dice);
+    dice.classList.add('disabled');
+  } else {
+    showDice(null);
+  }
+
+  if (isMyTurn && !room.dice && room.state === 'playing') {
+    btnRoll.disabled = false;
+    dice.classList.remove('disabled');
+    msg.textContent = room.extraTurn ? '⚡ Bonus turn! Roll again!' : "It's your turn!";
+  } else if (isMyTurn && room.dice && room.state === 'playing') {
+    btnRoll.disabled = true;
+    msg.textContent = 'Select a piece to move';
+    // Update valid moves
+    validMoves = getClientValidMoves(room);
+  } else {
+    btnRoll.disabled = true;
+    dice.classList.add('disabled');
+    msg.textContent = currentPlayer ? `${currentPlayer.name}'s turn...` : 'Game over';
+    validMoves = [];
+  }
+}
+
+function getClientValidMoves(room) {
+  const color = myColor;
+  if (!room.pieces[color]) return [];
+  const dice = room.dice;
+  const moves = [];
+
+  room.pieces[color].forEach((piece, idx) => {
+    if (piece.state === 'home') return;
+    if (piece.state === 'yard') {
+      if (dice === 6 || dice === 1) moves.push({ pieceIdx: idx, action: 'enter' });
+      return;
+    }
+    const newSteps = piece.steps + dice;
+    if (newSteps <= 58) moves.push({ pieceIdx: idx, action: 'move', newSteps });
+  });
+
+  return moves;
+}
+
+function showDice(value) {
+  const dotMap = {
+    1: ['g'],
+    2: ['a', 'b'],
+    3: ['a', 'g', 'b'],
+    4: ['a', 'c', 'd', 'b'],
+    5: ['a', 'c', 'g', 'd', 'b'],
+    6: ['a', 'c', 'e', 'f', 'd', 'b'],
+  };
+
+  ['a','b','c','d','e','f','g'].forEach(d => {
+    document.getElementById(`d-${d}`).classList.remove('visible');
+  });
+
+  if (value && dotMap[value]) {
+    dotMap[value].forEach(d => document.getElementById(`d-${d}`).classList.add('visible'));
+  }
+}
+
+function rollDice() {
+  if (!roomState || roomState.dice !== null) return;
+  const currentPlayer = roomState.players[roomState.currentTurn];
+  if (!currentPlayer || currentPlayer.id !== myPlayerId) return;
+
+  const dice = document.getElementById('dice-display');
+  dice.classList.add('rolling');
+  setTimeout(() => dice.classList.remove('rolling'), 500);
+
+  socket.emit('roll_dice', { roomId, playerId: myPlayerId }, (res) => {
+    if (res?.error) showToast(res.error);
+    if (res?.dice) {
+      showDice(res.dice);
+      validMoves = res.moves || [];
+      if (res.moves?.length === 0) showToast("No valid moves! Turn passes.");
+    }
+  });
+}
+
+function renderMoveLog(room) {
+  const entries = document.getElementById('log-entries');
+  entries.innerHTML = room.moveHistory.slice().reverse().map(e =>
+    `<div class="log-entry">${escHtml(e)}</div>`
+  ).join('');
+}
+
+function showWinner(room) {
+  const winnerPlayer = room.players.find(p => p.color === room.winner);
+  document.getElementById('winner-name-display').textContent = winnerPlayer?.name || room.winner;
+  document.getElementById('winner-name-display').style.color = COLOR_HEX[room.winner] || 'var(--gold)';
+
+  const btnRestart = document.getElementById('btn-restart');
+  btnRestart.style.display = isHost ? 'inline-flex' : 'none';
+
+  document.getElementById('winner-overlay').classList.add('show');
+}
+
+function restartGame() {
+  socket.emit('restart_game', { roomId, playerId: myPlayerId });
+  document.getElementById('winner-overlay').classList.remove('show');
+  validMoves = [];
+  selectedPiece = null;
+}
+
+function goToLobby() {
+  document.getElementById('winner-overlay').classList.remove('show');
+  showScreen('lobby');
+  roomId = null;
+  myPlayerId = null;
+  myColor = null;
+  isHost = false;
+  window.history.replaceState({}, '', window.location.pathname);
+}
+
+// ─── Utilities ────────────────────────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const screens = { lobby: 'lobby-screen', waiting: 'waiting-screen', game: 'game-screen' };
+  document.getElementById(screens[name]).classList.add('active');
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 3000);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);
+  ctx.arcTo(x+w, y, x+w, y+r, r);
+  ctx.lineTo(x+w, y+h-r);
+  ctx.arcTo(x+w, y+h, x+w-r, y+h, r);
+  ctx.lineTo(x+r, y+h);
+  ctx.arcTo(x, y+h, x, y+h-r, r);
+  ctx.lineTo(x, y+r);
+  ctx.arcTo(x, y, x+r, y, r);
+  ctx.closePath();
+}
+</script>
+</body>
+</html>
